@@ -63,6 +63,7 @@ class CheckpointHandler:
         default_hdfs_dir=None,
         resume_mode="auto",
         resume_from_path=None,
+        resume_from_step=None,
         mode=OrchestrationMode.SPMD,
         lora_train_meta=None,
     ):
@@ -71,6 +72,7 @@ class CheckpointHandler:
         self.default_hdfs_dir = default_hdfs_dir
         self.resume_mode = resume_mode
         self.resume_from_path = resume_from_path
+        self.resume_from_step = resume_from_step
         self.engine = engine
         self.train_dataloader = train_dataloader
         self.mode = mode
@@ -197,6 +199,7 @@ class CheckpointHandler:
         """Determine the path to resume from based on resume_mode configuration"""
         resume_mode = self.resume_mode
         resume_from_path = self.resume_from_path
+        resume_from_step = self.resume_from_step
 
         if resume_mode == "disable":
             return None
@@ -207,6 +210,8 @@ class CheckpointHandler:
                 )
                 assert "global_step_" in resume_from_path, "resume_from_path must specify the global_steps"
                 return resume_from_path
+            if resume_from_step is not None:
+                return self._find_step_checkpoint(resume_from_step)
             # Try to find the latest checkpoint in the default directory
             return self._find_latest_checkpoint()
         elif resume_mode == "resume_path":
@@ -215,6 +220,9 @@ class CheckpointHandler:
             )
             assert "global_step_" in resume_from_path, "resume_from_path must specify the global_steps"
             return resume_from_path
+        elif resume_mode == "resume_step":
+            assert resume_from_step is not None, "resume_from_step must be specified when resume_mode is 'resume_step'"
+            return self._find_step_checkpoint(resume_from_step)
         else:
             raise ValueError(f"Invalid resume_mode: {resume_mode}. Must be 'auto', 'disable', or 'resume_path'")
 
@@ -232,3 +240,13 @@ class CheckpointHandler:
             print(f"Found latest checkpoint: {latest_checkpoint} (step {step_num})")
 
         return latest_checkpoint
+
+    def _find_step_checkpoint(self, step):
+        """Find checkpoint for a specific step in the default local directory"""
+        checkpoint_dir = self.config.trainer.default_local_dir
+        expected_checkpoint_path = os.path.join(checkpoint_dir, f"global_step_{step}")
+        assert os.path.exists(expected_checkpoint_path), f"Checkpoint directory {checkpoint_dir} does not exist"
+
+        if self.rank == 0:
+            print(f"Found checkpoint for step {step}: {expected_checkpoint_path}")
+        return expected_checkpoint_path

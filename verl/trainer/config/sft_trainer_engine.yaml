@@ -76,10 +76,13 @@ trainer:
   # "auto": resume from last checkpoint if available
   # "disable": start from scratch
   # "resume_path": resume from a user-defined path
+  # "resume_step": resume from a specific global step  
   resume_mode: auto
 
   # Path to resume training from (used when resume_mode is "resume_path" or "auto")
   resume_from_path: null  
+  # Global step to resume training from (used when resume_mode is "resume_step" or "auto")
+  resume_from_step: null  
   device: cuda
 
   nnodes: 1
